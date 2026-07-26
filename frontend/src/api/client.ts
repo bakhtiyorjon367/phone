@@ -6,9 +6,8 @@ export const fetchAllPhones = async () =>
 export const fetchAllBatches = async () =>
   (await api.get<Batch[]>("/batches/all")).data;
 
-// Points to your FastAPI server
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000/api",
+  baseURL: "/api",
 });
 
 export const fetchDashboard = async () =>
