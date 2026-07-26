@@ -13,7 +13,7 @@ load_dotenv()
 
 async def init_db():
     # Fetch URI from environment, default to local MongoDB
-    mongo_uri = os.getenv("MONGODB_URI")
+    mongo_uri = os.getenv("MONGO_URI")
     client = AsyncMongoClient(mongo_uri)
 
     # Initialize Beanie with our document models
