@@ -1,0 +1,35 @@
+name: Deploy Frontend to EC2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install & Build
+        working-directory: ./frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Copy built files to EC2
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu # or your specific EC2 user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "frontend/dist/*"
+          target: "/var/www/phone_tracker_frontend"
+          strip_components: 2 # Strips the "frontend/dist/" folders from the destination path

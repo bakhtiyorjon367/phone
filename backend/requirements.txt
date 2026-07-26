@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+beanie
+pydantic
+pymongo
+pydantic-settings
+python-dotenv
