@@ -31,5 +31,5 @@ jobs:
           username: ubuntu # or your specific EC2 user
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "frontend/dist/*"
-          target: "/var/www/phone_tracker_frontend"
+          target: "/home/ubuntu/phone_frontend"
           strip_components: 2 # Strips the "frontend/dist/" folders from the destination path
