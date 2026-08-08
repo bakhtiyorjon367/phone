@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { Batch, DashboardStats, Phone, User } from "./types";
+import type { Batch, DashboardStats, Phone, Settlement, User } from "./types";
 import { getTelegramInitData } from "../telegram";
 
 const api = axios.create({
@@ -21,6 +21,9 @@ export const fetchAllPhones = async () =>
 
 export const fetchAllBatches = async () =>
   (await api.get<Batch[]>("/batches/all")).data;
+
+export const fetchAllSettlements = async () =>
+  (await api.get<Settlement[]>("/settlements/all")).data;
 
 export const fetchDashboard = async () =>
   (await api.get<DashboardStats>("/dashboard")).data;

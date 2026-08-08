@@ -10,6 +10,9 @@ import {
   CheckSquare,
   Square,
   UserRound,
+  History,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   fetchDashboard,
@@ -17,13 +20,20 @@ import {
   fetchUnsettledPhones,
   fetchAllPhones,
   fetchAllBatches,
+  fetchAllSettlements,
   buyPhone,
   createBatch,
   settlePhones,
   fetchMe,
   updateMe,
 } from "./api/client";
-import type { DashboardStats, Phone, Batch, User } from "./api/types";
+import type {
+  DashboardStats,
+  Phone,
+  Batch,
+  Settlement,
+  User,
+} from "./api/types";
 import { initTelegramWebApp, watchTelegramSafeArea } from "./telegram";
 
 export default function App() {
@@ -44,6 +54,13 @@ export default function App() {
   const [unsettledPhones, setUnsettledPhones] = useState<Phone[]>([]);
   const [allPhones, setAllPhones] = useState<Phone[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
+
+  // Received Money history (Cash Flow tab)
+  const [showReceivedHistory, setShowReceivedHistory] = useState(false);
+  const [expandedSettlementId, setExpandedSettlementId] = useState<
+    string | null
+  >(null);
 
   // "My" tab form state
   const [profileName, setProfileName] = useState("");
@@ -91,6 +108,7 @@ export default function App() {
       fetchKoreaStock().then(setKoreaStock);
       fetchUnsettledPhones().then(setUnsettledPhones);
       fetchAllBatches().then(setBatches);
+      fetchAllSettlements().then(setSettlements);
     }
   }, [refreshTrigger, currentUser]);
 
@@ -254,6 +272,99 @@ export default function App() {
                 </div>
                 <CheckCircle size={32} className="opacity-50" />
               </div>
+            </div>
+
+            {/* RECEIVED MONEY HISTORY (collapsible) */}
+            <div>
+              <button
+                onClick={() => setShowReceivedHistory((v) => !v)}
+                className="w-full flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100 active:scale-95 transition"
+              >
+                <span className="font-bold text-gray-900 flex items-center gap-2">
+                  <History size={18} className="text-blue-600" />
+                  Received Money History
+                </span>
+                {showReceivedHistory ? (
+                  <ChevronUp size={18} className="text-gray-400" />
+                ) : (
+                  <ChevronDown size={18} className="text-gray-400" />
+                )}
+              </button>
+
+              {showReceivedHistory && (
+                <div className="mt-2 bg-white rounded-xl shadow-sm border border-gray-100 max-h-80 overflow-y-auto divide-y divide-gray-100">
+                  {settlements.length === 0 ? (
+                    <p className="text-gray-400 text-sm italic text-center py-6">
+                      No received payments yet.
+                    </p>
+                  ) : (
+                    settlements.map((s) => {
+                      const isExpanded = expandedSettlementId === s._id;
+                      const includedPhones = allPhones.filter((p) =>
+                        s.phone_ids.includes(p._id),
+                      );
+                      const phoneCount =
+                        includedPhones.length || s.phone_ids.length;
+
+                      return (
+                        <div key={s._id}>
+                          <button
+                            onClick={() =>
+                              setExpandedSettlementId(
+                                isExpanded ? null : s._id,
+                              )
+                            }
+                            className="w-full flex justify-between items-center p-3 text-left"
+                          >
+                            <div>
+                              <p className="text-[11px] text-gray-400">
+                                {new Date(s.created_at).toLocaleString(
+                                  "ko-KR",
+                                )}
+                              </p>
+                              <p className="text-xs font-semibold text-gray-600">
+                                {phoneCount}{" "}
+                                {phoneCount === 1 ? "phone" : "phones"}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-emerald-600">
+                                +{formatKRW(s.total_recovered)}
+                              </span>
+                              {isExpanded ? (
+                                <ChevronUp
+                                  size={16}
+                                  className="text-gray-400"
+                                />
+                              ) : (
+                                <ChevronDown
+                                  size={16}
+                                  className="text-gray-400"
+                                />
+                              )}
+                            </div>
+                          </button>
+                          {isExpanded && (
+                            <div className="px-3 pb-3 space-y-1">
+                              {includedPhones.map((p) => (
+                                <div
+                                  key={p._id}
+                                  className="flex justify-between text-xs text-gray-500 bg-gray-50 rounded px-2 py-1.5"
+                                >
+                                  <span>{p.label}</span>
+                                  <span className="font-semibold">
+                                    {formatKRW(p.target_receivable)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
 
             {/* SETTLE RETURNED MONEY SECTION */}
@@ -556,8 +667,8 @@ export default function App() {
         {/* TAB 3: DELIVERIES (Couriers) */}
         {activeTab === "deliver" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold flex items-center justify-center mb-4">
-              <Truck className="mr-2" /> Active Deliveries
+            <h2 className="text-xl font-bold flex items-center justify-center gap-2 mb-4 text-gray-900">
+              <Truck className="text-amber-500" size={22} /> Active Deliveries
             </h2>
             {batches.length === 0 ? (
               <p className="text-gray-500 text-center mt-10">
@@ -568,18 +679,18 @@ export default function App() {
             {batches.map((batch) => (
               <div
                 key={batch._id}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+                className="bg-white rounded-xl shadow-sm border border-gray-200 border-l-4 border-l-amber-400 overflow-hidden"
               >
-                <div className="bg-gray-50 p-4 border-b flex justify-between items-center">
+                <div className="bg-amber-50/60 p-4 border-b border-amber-100 flex justify-between items-center">
                   <div>
                     <h3 className="font-bold text-gray-900">
                       {batch.courier_name}
                     </h3>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-amber-700 font-medium">
                       Flight: {batch.flight_date}
                     </p>
                   </div>
-                  <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded font-bold">
+                  <span className="bg-amber-500 text-white text-xs px-2 py-1 rounded font-bold shadow-sm">
                     Fee: {formatKRW(batch.total_delivery_fee)}
                   </span>
                 </div>
@@ -588,18 +699,29 @@ export default function App() {
                     {batch.courier_details}
                   </div>
                   <div>
-                    <p className="font-bold text-gray-700 mb-1">
+                    <p className="font-bold text-gray-700 mb-1.5">
                       Phones in this batch:
                     </p>
-                    <ul className="list-disc pl-5 text-gray-600 space-y-1">
+                    <ul className="space-y-1.5">
                       {allPhones
                         .filter((p) => p.batch_id === batch._id)
                         .map((p) => (
-                          <li key={p._id}>
-                            {p.label}{" "}
-                            {p.status === "SETTLED"
-                              ? "✅ (Settled)"
-                              : "⏳ (Pending)"}
+                          <li
+                            key={p._id}
+                            className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-1.5"
+                          >
+                            <span className="text-gray-700">{p.label}</span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                p.status === "SETTLED"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              {p.status === "SETTLED"
+                                ? "✅ Settled"
+                                : "⏳ Pending"}
+                            </span>
                           </li>
                         ))}
                     </ul>
@@ -613,8 +735,8 @@ export default function App() {
         {/* TAB 4: ALL PHONES DIRECTORY */}
         {activeTab === "all" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold flex items-center justify-center mb-4">
-              <List className="mr-2" /> Entire Inventory
+            <h2 className="text-xl font-bold flex items-center justify-center gap-2 mb-4 text-gray-900">
+              <List className="text-indigo-500" size={22} /> Entire Inventory
             </h2>
             {allPhones.length === 0 ? (
               <p className="text-gray-500 text-center mt-10">
@@ -625,19 +747,26 @@ export default function App() {
             <div className="space-y-3">
               {allPhones.map((p) => {
                 let badgeClass = "bg-gray-100 text-gray-600";
-                if (p.status === "IN_KOREA")
+                let borderClass = "border-l-gray-300";
+                if (p.status === "IN_KOREA") {
                   badgeClass = "bg-blue-100 text-blue-700";
-                if (p.status === "IN_TRANSIT")
+                  borderClass = "border-l-blue-400";
+                }
+                if (p.status === "IN_TRANSIT") {
                   badgeClass = "bg-amber-100 text-amber-700";
-                if (p.status === "SETTLED")
+                  borderClass = "border-l-amber-400";
+                }
+                if (p.status === "SETTLED") {
                   badgeClass = "bg-emerald-100 text-emerald-700";
+                  borderClass = "border-l-emerald-400";
+                }
 
                 const { cost, profit, delivery, total } = getPhoneBreakdown(p);
 
                 return (
                   <div
                     key={p._id}
-                    className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center"
+                    className={`bg-white p-4 rounded-xl shadow-sm border border-gray-100 border-l-4 ${borderClass} flex justify-between items-center`}
                   >
                     <div>
                       <p className="font-bold text-gray-900 text-sm">
@@ -666,31 +795,38 @@ export default function App() {
         {/* TAB 5: MY PROFILE */}
         {activeTab === "my" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold flex items-center justify-center mb-4">
-              <UserRound className="mr-2" /> My Profile
+            <h2 className="text-xl font-bold flex items-center justify-center gap-2 mb-4 text-gray-900">
+              <UserRound className="text-violet-500" size={22} /> My Profile
             </h2>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                <div>
-                  <p className="text-xs text-gray-400 font-medium">
-                    Telegram
-                  </p>
-                  <p className="font-bold text-gray-900">
-                    {currentUser.telegram_username
-                      ? `@${currentUser.telegram_username}`
-                      : "No Telegram username set"}
-                  </p>
+              <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                <div className="w-12 h-12 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center font-black text-lg shrink-0">
+                  {(profileName || currentUser.telegram_username || "?")
+                    .charAt(0)
+                    .toUpperCase()}
                 </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-1 rounded-full ${
-                    isAdmin
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {currentUser.role.toUpperCase()}
-                </span>
+                <div className="flex-1 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium">
+                      Telegram
+                    </p>
+                    <p className="font-bold text-gray-900">
+                      {currentUser.telegram_username
+                        ? `@${currentUser.telegram_username}`
+                        : "No Telegram username set"}
+                    </p>
+                  </div>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+                      isAdmin
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {currentUser.role.toUpperCase()}
+                  </span>
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -702,7 +838,7 @@ export default function App() {
                   placeholder="Your name"
                   value={profileName}
                   onChange={(e) => setProfileName(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg outline-none focus:border-blue-500"
+                  className="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg outline-none focus:border-violet-500"
                 />
               </div>
 
@@ -715,14 +851,14 @@ export default function App() {
                   placeholder="Anything you'd like to note..."
                   value={profileBio}
                   onChange={(e) => setProfileBio(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg outline-none focus:border-blue-500"
+                  className="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg outline-none focus:border-violet-500"
                 />
               </div>
 
               <button
                 onClick={handleSaveProfile}
                 disabled={savingProfile}
-                className="w-full bg-blue-600 text-white font-bold p-3 rounded-lg disabled:opacity-50"
+                className="w-full bg-violet-600 text-white font-bold p-3 rounded-lg disabled:opacity-50"
               >
                 {savingProfile ? "Saving..." : "Save Changes"}
               </button>

@@ -7,6 +7,7 @@ from pymongo import AsyncMongoClient
 from models.batch import Batch
 from models.budget import Budget
 from models.phone import Phone
+from models.settlement import Settlement
 from models.user import User
 
 load_dotenv()
@@ -20,7 +21,7 @@ async def init_db():
     # Initialize Beanie with our document models
     await init_beanie(
         database=client.iphone_tracker,
-        document_models=[Phone, Batch, Budget, User]
+        document_models=[Phone, Batch, Budget, User, Settlement]
     )
 
     # Ensure a Budget ledger exists

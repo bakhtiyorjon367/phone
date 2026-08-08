@@ -32,6 +32,13 @@ export interface User {
   created_at: string;
 }
 
+export interface Settlement {
+  _id: string;
+  phone_ids: string[];
+  total_recovered: number;
+  created_at: string;
+}
+
 export interface DashboardStats {
   liquid_cash_korea: number;
   korea_stock_value: number;
