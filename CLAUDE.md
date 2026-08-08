@@ -44,8 +44,8 @@ There is no test suite currently.
 
 ### Backend: routes → services → models
 
-- **`models/`** — Beanie `Document` classes (`Phone`, `Batch`, `Budget`, `User`) are both the domain model and the MongoDB schema. `Phone.status` is a state machine: `IN_KOREA` → `IN_TRANSIT` → `SETTLED`. `Phone.target_receivable` (a property, not a stored field) is `purchase_cost + delivery_share + profit`. `User.role` is `user` or `admin` (see Auth below).
-- **`routes/`** — thin FastAPI routers (one per resource: `phones`, `batches`, `budget`, `dashboard`, `users`), each mounted under `/api/<resource>`. They parse the request schema and delegate straight to a matching `services/*_service.py` function; no business logic lives here. (`users` is the exception — it's small enough that its two handlers live directly in the route file, no `users_service.py`.)
+- **`models/`** — Beanie `Document` classes (`Phone`, `Batch`, `Budget`, `User`, `Settlement`) are both the domain model and the MongoDB schema. `Phone.status` is a state machine: `IN_KOREA` → `IN_TRANSIT` → `SETTLED`. `Phone.target_receivable` (a property, not a stored field) is `purchase_cost + delivery_share + profit`. `User.role` is `user` or `admin` (see Auth below). `Settlement` is a append-only log, one row per "Confirm Payment" action (`phone_ids` + `total_recovered` + `created_at`) — it exists purely for the Cash Flow tab's "Received Money History"; it's written in `phones_service.settle()` but nothing else reads or mutates it.
+- **`routes/`** — thin FastAPI routers (one per resource: `phones`, `batches`, `budget`, `dashboard`, `users`, `settlements`), each mounted under `/api/<resource>`. They parse the request schema and delegate straight to a matching `services/*_service.py` function; no business logic lives here. (`users` and `settlements` are the exception — small enough that their handlers live directly in the route file, no matching `*_service.py`.)
 - **`services/`** — the actual business logic (budget deduction/credit, phone status transitions, batch fee splitting, dashboard aggregation). This is where to look when changing how money or stock moves.
 - **`schemas/api_schemas.py`** — all request-body Pydantic models in one file (not split per route).
 - **`core/database.py`** — `init_db()`, called from the FastAPI `lifespan` in `main.py`, wires up Beanie against the `iphone_tracker` database and seeds the singleton `Budget`.
@@ -53,7 +53,7 @@ There is no test suite currently.
 Key domain rules enforced in the service layer:
 - Buying a phone (`phones_service.create`) immediately debits `Budget.current_cash` by `purchase_cost`.
 - Creating a batch (`batches_service.create`) requires phones to currently be `IN_KOREA`, debits the total courier fee from `Budget`, splits it evenly across the phones into `delivery_share`, and flips them to `IN_TRANSIT`.
-- Settling phones (`phones_service.settle`) credits `Budget.current_cash` by the sum of each phone's `target_receivable` and flips them to `SETTLED`.
+- Settling phones (`phones_service.settle`) credits `Budget.current_cash` by the sum of each phone's `target_receivable`, flips them to `SETTLED`, and (if at least one phone was actually newly settled) writes one `Settlement` record for the whole call.
 - `dashboard_service.dashboard()` recomputes summary stats (stock value, amount owed by the buyer abroad, realized profit) from the current `Phone`/`Budget` state on every call rather than maintaining running totals — it's the place to update if new dashboard figures are needed.
 
 ### Auth: Telegram Mini App + roles
