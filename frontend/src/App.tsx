@@ -556,7 +556,7 @@ export default function App() {
         {/* TAB 3: DELIVERIES (Couriers) */}
         {activeTab === "deliver" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold flex items-center mb-4">
+            <h2 className="text-xl font-bold flex items-center justify-center mb-4">
               <Truck className="mr-2" /> Active Deliveries
             </h2>
             {batches.length === 0 ? (
@@ -613,7 +613,7 @@ export default function App() {
         {/* TAB 4: ALL PHONES DIRECTORY */}
         {activeTab === "all" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold flex items-center mb-4">
+            <h2 className="text-xl font-bold flex items-center justify-center mb-4">
               <List className="mr-2" /> Entire Inventory
             </h2>
             {allPhones.length === 0 ? (
@@ -666,7 +666,7 @@ export default function App() {
         {/* TAB 5: MY PROFILE */}
         {activeTab === "my" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold flex items-center mb-4">
+            <h2 className="text-xl font-bold flex items-center justify-center mb-4">
               <UserRound className="mr-2" /> My Profile
             </h2>
 
