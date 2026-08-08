@@ -24,7 +24,7 @@ import {
   updateMe,
 } from "./api/client";
 import type { DashboardStats, Phone, Batch, User } from "./api/types";
-import { initTelegramWebApp } from "./telegram";
+import { initTelegramWebApp, watchTelegramSafeArea } from "./telegram";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<
@@ -67,6 +67,7 @@ export default function App() {
   // (auto-provisioning the user server-side) before loading anything else.
   useEffect(() => {
     initTelegramWebApp();
+    watchTelegramSafeArea();
     fetchMe()
       .then((user) => {
         setCurrentUser(user);
@@ -214,11 +215,14 @@ export default function App() {
   return (
     <div className="h-screen bg-gray-50 flex flex-col font-sans text-gray-800">
       {/* SCROLLABLE MAIN CONTENT AREA */}
-      <div className="flex-1 overflow-y-auto pb-28 p-4 space-y-6">
+      <div
+        className="flex-1 overflow-y-auto pb-28 px-4 space-y-6"
+        style={{ paddingTop: "calc(var(--tg-safe-area-top) + 1rem)" }}
+      >
         {/* TAB 1: CASH FLOW (Dashboard & Settlement) - admin only */}
         {activeTab === "cash" && stats && (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-900 text-center">
               Financial Overview
             </h2>
 
@@ -426,7 +430,7 @@ export default function App() {
         {activeTab === "insert" && (
           <div className="space-y-8">
             <div>
-              <h2 className="text-xl font-bold flex items-center mb-4">
+              <h2 className="text-xl font-bold flex items-center justify-center mb-4">
                 <PackagePlus className="mr-2" /> Buy New Phone
               </h2>
               <form
@@ -459,7 +463,7 @@ export default function App() {
             </div>
 
             <div>
-              <h2 className="text-xl font-bold flex items-center mb-4">
+              <h2 className="text-xl font-bold flex items-center justify-center mb-4">
                 <Send className="mr-2" /> Dispatch Batch
               </h2>
               <form

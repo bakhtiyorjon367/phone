@@ -1,1 +1,8 @@
 @import "tailwindcss";
+
+:root {
+  /* Space reserved at the top so content clears Telegram's own floating
+     Close/Back button; telegram.ts overwrites this once the real Mini App
+     safe area is known. */
+  --tg-safe-area-top: 56px;
+}
