@@ -26,3 +26,10 @@ class SettlePhonesRequest(BaseModel):
 class BudgetAdjustRequest(BaseModel):
     amount: int
     adjustment_type: str  # "ADD" or "WITHDRAW"
+
+
+class UserUpdateRequest(BaseModel):
+    # Deliberately excludes telegram_username/telegram_id/role - those are
+    # not user-editable.
+    display_name: Optional[str] = None
+    bio: Optional[str] = None

@@ -1,9 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from datetime import datetime, timezone
+from core.telegram_auth import require_admin
 from models.budget import Budget
 from schemas.api_schemas import BudgetAdjustRequest
 
-router = APIRouter(prefix="/api/budget", tags=["Budget"])
+router = APIRouter(prefix="/api/budget", tags=["Budget"], dependencies=[Depends(require_admin)])
 
 
 @router.post("/adjust")

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.database import init_db
-from routes import dashboard, phones, batches, budget
+from routes import dashboard, phones, batches, budget, users
 
 
 @asynccontextmanager
@@ -36,6 +36,7 @@ app.include_router(dashboard.router)
 app.include_router(phones.router)
 app.include_router(batches.router)
 app.include_router(budget.router)
+app.include_router(users.router)
 
 if __name__ == "__main__":
     import uvicorn

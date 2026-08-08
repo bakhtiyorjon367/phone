@@ -1,9 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from core.telegram_auth import require_admin
 from models.batch import Batch
 from schemas.api_schemas import CreateBatchRequest
 
-router = APIRouter(prefix="/api/batches", tags=["Batches"])
+router = APIRouter(prefix="/api/batches", tags=["Batches"], dependencies=[Depends(require_admin)])
 from services.batches_service import create
 
 

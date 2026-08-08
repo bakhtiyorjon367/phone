@@ -1,14 +1,26 @@
 import axios from "axios";
-import type { Batch, DashboardStats, Phone } from "./types";
+import type { Batch, DashboardStats, Phone, User } from "./types";
+import { getTelegramInitData } from "../telegram";
+
+const api = axios.create({
+  baseURL: "/api",
+});
+
+// Every request is authenticated as the Telegram user opening this Mini App;
+// the backend verifies the signed initData and auto-provisions/loads the User.
+api.interceptors.request.use((config) => {
+  const initData = getTelegramInitData();
+  if (initData) {
+    config.headers.Authorization = `tma ${initData}`;
+  }
+  return config;
+});
+
 export const fetchAllPhones = async () =>
   (await api.get<Phone[]>("/phones/all")).data;
 
 export const fetchAllBatches = async () =>
   (await api.get<Batch[]>("/batches/all")).data;
-
-const api = axios.create({
-  baseURL: "/api",
-});
 
 export const fetchDashboard = async () =>
   (await api.get<DashboardStats>("/dashboard")).data;
@@ -34,3 +46,10 @@ export const createBatch = async (payload: {
 export const settlePhones = async (phone_ids: string[]) => {
   return (await api.post("/phones/settle", { phone_ids })).data;
 };
+
+export const fetchMe = async () => (await api.get<User>("/users/me")).data;
+
+export const updateMe = async (payload: {
+  display_name?: string;
+  bio?: string;
+}) => (await api.patch<User>("/users/me", payload)).data;

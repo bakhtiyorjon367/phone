@@ -22,6 +22,16 @@ export interface Batch {
   created_at: string;
 }
 
+export interface User {
+  _id: string;
+  telegram_id: number;
+  telegram_username?: string;
+  display_name?: string;
+  bio?: string;
+  role: "user" | "admin";
+  created_at: string;
+}
+
 export interface DashboardStats {
   liquid_cash_korea: number;
   korea_stock_value: number;

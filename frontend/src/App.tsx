@@ -9,6 +9,7 @@ import {
   CheckCircle,
   CheckSquare,
   Square,
+  UserRound,
 } from "lucide-react";
 import {
   fetchDashboard,
@@ -19,14 +20,23 @@ import {
   buyPhone,
   createBatch,
   settlePhones,
+  fetchMe,
+  updateMe,
 } from "./api/client";
-import type { DashboardStats, Phone, Batch } from "./api/types";
+import type { DashboardStats, Phone, Batch, User } from "./api/types";
+import { initTelegramWebApp } from "./telegram";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<
-    "cash" | "insert" | "deliver" | "all"
+    "cash" | "insert" | "deliver" | "all" | "my"
   >("cash");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Auth State
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const isAdmin = currentUser?.role === "admin";
 
   // Data State
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -34,6 +44,12 @@ export default function App() {
   const [unsettledPhones, setUnsettledPhones] = useState<Phone[]>([]);
   const [allPhones, setAllPhones] = useState<Phone[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
+
+  // "My" tab form state
+  const [profileName, setProfileName] = useState("");
+  const [profileBio, setProfileBio] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
 
   // Form States
   const [newPhoneLabel, setNewPhoneLabel] = useState("");
@@ -47,13 +63,35 @@ export default function App() {
 
   const refreshData = () => setRefreshTrigger((prev) => prev + 1);
 
+  // Auth bootstrap: verify the Telegram identity opening this Mini App
+  // (auto-provisioning the user server-side) before loading anything else.
   useEffect(() => {
-    fetchDashboard().then(setStats);
-    fetchKoreaStock().then(setKoreaStock);
-    fetchUnsettledPhones().then(setUnsettledPhones);
+    initTelegramWebApp();
+    fetchMe()
+      .then((user) => {
+        setCurrentUser(user);
+        setProfileName(user.display_name ?? "");
+        setProfileBio(user.bio ?? "");
+        setActiveTab(user.role === "admin" ? "cash" : "all");
+      })
+      .catch(() =>
+        setAuthError(
+          "Couldn't verify your Telegram account. Please open this app from Telegram.",
+        ),
+      )
+      .finally(() => setAuthLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
     fetchAllPhones().then(setAllPhones);
-    fetchAllBatches().then(setBatches);
-  }, [refreshTrigger]);
+    if (currentUser.role === "admin") {
+      fetchDashboard().then(setStats);
+      fetchKoreaStock().then(setKoreaStock);
+      fetchUnsettledPhones().then(setUnsettledPhones);
+      fetchAllBatches().then(setBatches);
+    }
+  }, [refreshTrigger, currentUser]);
 
   const formatKRW = (num: number) =>
     new Intl.NumberFormat("ko-KR", {
@@ -137,7 +175,36 @@ export default function App() {
     refreshData();
   };
 
-  if (!stats)
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    setProfileSaved(false);
+    try {
+      const updated = await updateMe({
+        display_name: profileName,
+        bio: profileBio,
+      });
+      setCurrentUser(updated);
+      setProfileSaved(true);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  if (authLoading)
+    return (
+      <div className="flex h-screen items-center justify-center font-bold text-gray-500">
+        Loading...
+      </div>
+    );
+
+  if (authError || !currentUser)
+    return (
+      <div className="flex h-screen items-center justify-center text-center font-bold text-gray-500 p-6">
+        {authError ?? "Sign-in failed."}
+      </div>
+    );
+
+  if (isAdmin && !stats)
     return (
       <div className="flex h-screen items-center justify-center font-bold text-gray-500">
         Loading...
@@ -148,8 +215,8 @@ export default function App() {
     <div className="h-screen bg-gray-50 flex flex-col font-sans text-gray-800">
       {/* SCROLLABLE MAIN CONTENT AREA */}
       <div className="flex-1 overflow-y-auto pb-28 p-4 space-y-6">
-        {/* TAB 1: CASH FLOW (Dashboard & Settlement) */}
-        {activeTab === "cash" && (
+        {/* TAB 1: CASH FLOW (Dashboard & Settlement) - admin only */}
+        {activeTab === "cash" && stats && (
           <div className="space-y-6">
             <h2 className="text-xl font-bold text-gray-900">
               Financial Overview
@@ -591,37 +658,120 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* TAB 5: MY PROFILE */}
+        {activeTab === "my" && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold flex items-center mb-4">
+              <UserRound className="mr-2" /> My Profile
+            </h2>
+
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <div>
+                  <p className="text-xs text-gray-400 font-medium">
+                    Telegram
+                  </p>
+                  <p className="font-bold text-gray-900">
+                    {currentUser.telegram_username
+                      ? `@${currentUser.telegram_username}`
+                      : "No Telegram username set"}
+                  </p>
+                </div>
+                <span
+                  className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+                    isAdmin
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {currentUser.role.toUpperCase()}
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">
+                  Display Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Your name"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-600">
+                  Notes / Bio
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Anything you'd like to note..."
+                  value={profileBio}
+                  onChange={(e) => setProfileBio(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <button
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+                className="w-full bg-blue-600 text-white font-bold p-3 rounded-lg disabled:opacity-50"
+              >
+                {savingProfile ? "Saving..." : "Save Changes"}
+              </button>
+              {profileSaved && (
+                <p className="text-xs text-emerald-600 font-medium text-center">
+                  Saved!
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* FIXED BOTTOM NAVIGATION BAR */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-20 px-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        <button
-          onClick={() => setActiveTab("cash")}
-          className={`flex flex-col items-center flex-1 py-2 ${activeTab === "cash" ? "text-blue-600" : "text-gray-400"}`}
-        >
-          <Wallet size={24} />
-          <span className="text-[10px] mt-1 font-medium">Cash Flow</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("insert")}
-          className={`flex flex-col items-center flex-1 py-2 ${activeTab === "insert" ? "text-blue-600" : "text-gray-400"}`}
-        >
-          <Smartphone size={24} />
-          <span className="text-[10px] mt-1 font-medium">Add/Ship</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("deliver")}
-          className={`flex flex-col items-center flex-1 py-2 ${activeTab === "deliver" ? "text-blue-600" : "text-gray-400"}`}
-        >
-          <Truck size={24} />
-          <span className="text-[10px] mt-1 font-medium">Deliver</span>
-        </button>
+        {isAdmin && (
+          <>
+            <button
+              onClick={() => setActiveTab("cash")}
+              className={`flex flex-col items-center flex-1 py-2 ${activeTab === "cash" ? "text-blue-600" : "text-gray-400"}`}
+            >
+              <Wallet size={24} />
+              <span className="text-[10px] mt-1 font-medium">Cash Flow</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("insert")}
+              className={`flex flex-col items-center flex-1 py-2 ${activeTab === "insert" ? "text-blue-600" : "text-gray-400"}`}
+            >
+              <Smartphone size={24} />
+              <span className="text-[10px] mt-1 font-medium">Add/Ship</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("deliver")}
+              className={`flex flex-col items-center flex-1 py-2 ${activeTab === "deliver" ? "text-blue-600" : "text-gray-400"}`}
+            >
+              <Truck size={24} />
+              <span className="text-[10px] mt-1 font-medium">Deliver</span>
+            </button>
+          </>
+        )}
         <button
           onClick={() => setActiveTab("all")}
           className={`flex flex-col items-center flex-1 py-2 ${activeTab === "all" ? "text-blue-600" : "text-gray-400"}`}
         >
           <List size={24} />
           <span className="text-[10px] mt-1 font-medium">All Phones</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("my")}
+          className={`flex flex-col items-center flex-1 py-2 ${activeTab === "my" ? "text-blue-600" : "text-gray-400"}`}
+        >
+          <UserRound size={24} />
+          <span className="text-[10px] mt-1 font-medium">My</span>
         </button>
       </div>
     </div>
